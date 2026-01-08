@@ -38,10 +38,8 @@ body{
 canvas{
   width:400px;
   height:400px;
-  border-radius:20px;
   background:#08140d;
   border:3px solid var(--accent);
-  image-rendering:pixelated;
 }
 
 #ui{
@@ -51,11 +49,11 @@ canvas{
   display:flex;
   flex-direction:column;
   gap:10px;
-  min-width:150px;
+  min-width:170px;
 }
 
 #score{
-  font-size:20px;
+  font-size:18px;
   color:var(--accent);
 }
 
@@ -69,10 +67,6 @@ button,input{
 button{
   background:var(--btn);
   cursor:pointer;
-}
-
-button:hover{
-  transform:scale(1.05);
 }
 
 #overlay{
@@ -99,7 +93,7 @@ button:hover{
   <canvas id="game" width="400" height="400"></canvas>
 
   <div id="ui">
-    <div id="score">Score: 0</div>
+    <div id="score">Score: 0 | Best: 0</div>
     <label>Speed
       <input type="range" id="speed" min="120" max="400" value="240">
     </label>
@@ -127,6 +121,60 @@ let snake, food, dir, score;
 let gameOver=false, paused=false;
 let speedDelay=240, lastMove=0;
 
+let bestScore = Number(localStorage.getItem("htcja_best")) || 0;
+
+// --- Curved head drawer (rotates with direction) ---
+function drawCapRect(x,y,w,h,r,dir){
+  ctx.beginPath();
+
+  if(dir==="UP"){
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h);
+    ctx.lineTo(x,y+h);
+    ctx.lineTo(x,y+r);
+    ctx.quadraticCurveTo(x,y,x+r,y);
+  }
+
+  if(dir==="DOWN"){
+    ctx.moveTo(x,y);
+    ctx.lineTo(x+w,y);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);
+    ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y);
+  }
+
+  if(dir==="LEFT"){
+    ctx.moveTo(x+r,y);
+    ctx.quadraticCurveTo(x,y,x,y+r);
+    ctx.lineTo(x,y+h-r);
+    ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+    ctx.lineTo(x+w,y+h);
+    ctx.lineTo(x+w,y);
+  }
+
+  if(dir==="RIGHT"){
+    ctx.moveTo(x,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x,y+h);
+    ctx.lineTo(x,y);
+  }
+
+  ctx.closePath();
+  ctx.fill();
+}
+
+function updateScoreUI(){
+  document.getElementById("score").textContent =
+    `Score: ${score} | Best: ${bestScore}`;
+}
+
 function resetGame(){
   snake=[{
     gx:8, gy:8,
@@ -137,86 +185,85 @@ function resetGame(){
   score=0;
   gameOver=false;
   paused=false;
-  document.getElementById("score").textContent="Score: 0";
   document.getElementById("overlay").style.display="none";
+  updateScoreUI();
 }
 
 resetGame();
 
 document.getElementById("speed").oninput=e=>{
-  speedDelay=+e.target.value;
+  speedDelay = +e.target.value;
 };
 
 document.getElementById("pause").onclick=()=>{
   paused=!paused;
-  pause.textContent=paused?"Resume":"Pause";
+  pause.textContent = paused ? "Resume" : "Pause";
 };
 
 document.addEventListener("keydown",e=>{
-  if(gameOver||paused) return;
-  const d={
+  if(gameOver || paused) return;
+
+  const map={
     ArrowUp:"UP",ArrowDown:"DOWN",
     ArrowLeft:"LEFT",ArrowRight:"RIGHT",
     w:"UP",s:"DOWN",a:"LEFT",d:"RIGHT"
-  }[e.key];
-  if(!d) return;
+  };
+  const next = map[e.key];
+  if(!next) return;
 
   if(snake.length>1){
-    if((dir==="UP"&&d==="DOWN")||
-       (dir==="DOWN"&&d==="UP")||
-       (dir==="LEFT"&&d==="RIGHT")||
-       (dir==="RIGHT"&&d==="LEFT")) return;
+    if(
+      (dir==="UP"&&next==="DOWN")||
+      (dir==="DOWN"&&next==="UP")||
+      (dir==="LEFT"&&next==="RIGHT")||
+      (dir==="RIGHT"&&next==="LEFT")
+    ) return;
   }
-  dir=d;
+  dir=next;
 });
 
 function spawnFood(){
-  food={
-    x:Math.floor(Math.random()*grid),
-    y:Math.floor(Math.random()*grid)
-  };
+  food={x:Math.floor(Math.random()*grid),y:Math.floor(Math.random()*grid)};
 }
 spawnFood();
 
 function update(){
   if(!dir) return;
 
-  const head=snake[0];
-  let nx=head.gx, ny=head.gy;
+  const h=snake[0];
+  let nx=h.gx, ny=h.gy;
 
-  if(dir==="UP") ny--;
-  if(dir==="DOWN") ny++;
-  if(dir==="LEFT") nx--;
-  if(dir==="RIGHT") nx++;
+  if(dir==="UP")ny--;
+  if(dir==="DOWN")ny++;
+  if(dir==="LEFT")nx--;
+  if(dir==="RIGHT")nx++;
 
-  if(nx<0||ny<0||nx>=grid||ny>=grid){
-    endGame(); return;
-  }
+  if(nx<0||ny<0||nx>=grid||ny>=grid){endGame();return;}
 
   for(let i=1;i<snake.length;i++){
-    if(snake[i].gx===nx && snake[i].gy===ny){
-      endGame(); return;
-    }
+    if(snake[i].gx===nx && snake[i].gy===ny){endGame();return;}
   }
 
   snake.unshift({
     gx:nx, gy:ny,
-    x:head.x, y:head.y,
+    x:h.x, y:h.y,
     tx:nx*box, ty:ny*box
   });
 
   if(nx===food.x && ny===food.y){
     score++;
-    document.getElementById("score").textContent="Score: "+score;
+    if(score>bestScore){
+      bestScore=score;
+      localStorage.setItem("htcja_best",bestScore);
+    }
+    updateScoreUI();
     spawnFood();
-  } else {
-    snake.pop();
-  }
+  } else snake.pop();
 }
 
 function draw(){
   ctx.clearRect(0,0,400,400);
-  
+
   for(let y=0;y<grid;y++){
     for(let x=0;x<grid;x++){
       ctx.fillStyle=(x+y)%2?"#0f3":"#084";
@@ -232,28 +279,28 @@ function draw(){
   snake.forEach((s,i)=>{
     s.x+=(s.tx-s.x)*0.35;
     s.y+=(s.ty-s.y)*0.35;
-    ctx.fillStyle=i? "var(--tail)" : "var(--snake)";
-    ctx.beginPath();
-    ctx.roundRect(s.x,s.y,box,box,6);
-    ctx.fill();
+    ctx.fillStyle=i===0?"var(--snake)":"var(--tail)";
+    if(i===0) drawCapRect(s.x,s.y,box,box,6,dir||"UP");
+    else ctx.fillRect(s.x,s.y,box,box);
   });
 }
 
 function endGame(){
   gameOver=true;
-  document.getElementById("finalScore").textContent="Score: "+score;
+  document.getElementById("finalScore").textContent =
+    `Score: ${score} | Best: ${bestScore}`;
   document.getElementById("overlay").style.display="flex";
 }
 
 function loop(t){
-  if(!paused && !gameOver && t-lastMove>speedDelay){
-    update();
-    lastMove=t;
+  if(!paused&&!gameOver&&t-lastMove>speedDelay){
+    update(); lastMove=t;
   }
   draw();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 </script>
+
 </body>
 </html>
