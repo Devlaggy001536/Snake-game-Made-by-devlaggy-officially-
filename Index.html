@@ -55,12 +55,9 @@ button,input{
   border-radius:14px;
   padding:8px;
   font-size:14px;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
 }
 
-button{background:var(--btn)}
+button{background:var(--btn);cursor:pointer}
 
 #overlay{
   position:fixed;
@@ -78,10 +75,28 @@ button{background:var(--btn)}
   text-align:center;
 }
 
-/* joystick */
-#joystick{display:none;gap:6px}
-#joystick .row{display:flex;justify-content:center;gap:6px}
-#joystick button{width:48px;height:48px;font-weight:bold; font-size:18px}
+/* ===== JOYSTICK ===== */
+#joystick{
+  display:none;          /* hidden by default */
+  gap:6px;
+  display:grid;
+  grid-template-columns:48px 48px 48px;
+  grid-template-rows:48px 48px 48px;
+  justify-content:center;
+}
+
+#joystick button{
+  width:48px;
+  height:48px;
+  font-weight:bold;
+}
+
+/* Grid positioning for D-Pad */
+#joystick button:nth-child(1){ grid-column:2; grid-row:1; } /* ↑ */
+#joystick button:nth-child(2){ grid-column:1; grid-row:2; } /* ← */
+#joystick button:nth-child(3){ grid-column:2; grid-row:2; visibility:hidden; } /* spacer */
+#joystick button:nth-child(4){ grid-column:3; grid-row:2; } /* → */
+#joystick button:nth-child(5){ grid-column:2; grid-row:3; } /* ↓ */
 </style>
 </head>
 
@@ -102,17 +117,11 @@ button{background:var(--btn)}
     <button onclick="resetGame()">New Game</button>
 
     <div id="joystick">
-      <div class="row">
-        <button onclick="setDir('UP')">^</button>
-      </div>
-      <div class="row">
-        <button onclick="setDir('LEFT')">&lt;</button>
-        <button disabled></button>
-        <button onclick="setDir('RIGHT')">&gt;</button>
-      </div>
-      <div class="row">
-        <button onclick="setDir('DOWN')">↓</button>
-      </div>
+      <button onclick="setDir('UP')">↑</button>
+      <button onclick="setDir('LEFT')">←</button>
+      <button disabled></button>
+      <button onclick="setDir('RIGHT')">→</button>
+      <button onclick="setDir('DOWN')">↓</button>
     </div>
   </div>
 </div>
@@ -184,9 +193,10 @@ pauseBtn.onclick=()=>{
   pauseBtn.textContent = paused?"Resume":"Pause";
 };
 
+/* ===== MOBILE MODE ===== */
 mobileBtn.onclick=()=>{
   mobile=!mobile;
-  joystick.style.display = mobile?"flex":"none";
+  joystick.style.display = mobile?"grid":"none";
   mobileBtn.textContent = mobile?"Mobile ON":"Mobile Mode";
 };
 
@@ -294,29 +304,6 @@ function loop(t){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-
-/* ===== RIPPLE EFFECT ===== */
-document.querySelectorAll("button").forEach(btn=>{
-  btn.addEventListener("click", e=>{
-    const circle = document.createElement("span");
-    circle.style.position = "absolute";
-    circle.style.width = "100px";
-    circle.style.height = "100px";
-    circle.style.background = "rgba(255,255,255,0.2)";
-    circle.style.borderRadius = "50%";
-    circle.style.pointerEvents = "none";
-    circle.style.left = `${e.offsetX - 50}px`;
-    circle.style.top = `${e.offsetY - 50}px`;
-    circle.style.transform = "scale(0)";
-    circle.style.transition = "transform 0.5s, opacity 0.5s";
-    btn.appendChild(circle);
-    requestAnimationFrame(()=> {
-      circle.style.transform = "scale(2)";
-      circle.style.opacity = "0";
-    });
-    setTimeout(()=> btn.removeChild(circle), 500);
-  });
-});
 </script>
 
 </body>
