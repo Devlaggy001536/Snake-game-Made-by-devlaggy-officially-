@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTCJaSnake</title>
+
+<style>
+:root{
+  --bg:#0b1a12;
+  --panel:#10261a;
+  --accent:#00ff99;
+  --snake:#00d9ff;
+  --tail:#1fa36a;
+  --btn:#00ff99;
+}
+
+body{
+  margin:0;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:
+    linear-gradient(90deg, rgba(0,255,150,.06) 1px, transparent 1px),
+    linear-gradient(rgba(0,255,150,.06) 1px, transparent 1px),
+    var(--bg);
+  background-size:40px 40px;
+  font-family:system-ui;
+  color:white;
+}
+
+#wrap{display:flex;gap:14px}
+
+canvas{
+  width:400px;height:400px;
+  background:#08140d;
+  border:3px solid var(--accent);
+}
+
+#ui{
+  background:var(--panel);
+  padding:14px;
+  border-radius:18px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  min-width:170px;
+}
+
+#score{color:var(--accent)}
+
+button,input{
+  border:none;
+  border-radius:14px;
+  padding:8px;
+  font-size:14px;
+}
+
+button{background:var(--btn);cursor:pointer}
+
+#overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.85);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+#gameover{
+  background:var(--panel);
+  padding:20px;
+  border-radius:22px;
+  text-align:center;
+}
+
+/* ===== JOYSTICK ===== */
+#joystick{
+  display:none;          /* hidden by default */
+  gap:6px;
+  display:grid;
+  grid-template-columns:48px 48px 48px;
+  grid-template-rows:48px 48px 48px;
+  justify-content:center;
+}
+
+#joystick button{
+  width:48px;
+  height:48px;
+  font-weight:bold;
+}
+
+/* Grid positioning for D-Pad */
+#joystick button:nth-child(1){ grid-column:2; grid-row:1; } /* ↑ */
+#joystick button:nth-child(2){ grid-column:1; grid-row:2; } /* ← */
+#joystick button:nth-child(3){ grid-column:2; grid-row:2; visibility:hidden; } /* spacer */
+#joystick button:nth-child(4){ grid-column:3; grid-row:2; } /* → */
+#joystick button:nth-child(5){ grid-column:2; grid-row:3; } /* ↓ */
+</style>
+</head>
+
+<body>
+
+<div id="wrap">
+  <canvas id="game" width="400" height="400"></canvas>
+
+  <div id="ui">
+    <div id="score">Score: 0 | Best: 0</div>
+
+    <label>Speed
+      <input type="range" id="speed" min="1" max="10" value="4">
+    </label>
+
+    <button id="pause">Pause</button>
+    <button id="mobileBtn">Mobile Mode</button>
+    <button onclick="resetGame()">New Game</button>
+
+    <div id="joystick">
+      <button onclick="setDir('UP')">↑</button>
+      <button onclick="setDir('LEFT')">←</button>
+      <button disabled></button>
+      <button onclick="setDir('RIGHT')">→</button>
+      <button onclick="setDir('DOWN')">↓</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="gameover">
+    <h2>Game Over</h2>
+    <p id="finalScore"></p>
+    <button onclick="resetGame()">New Game</button>
+  </div>
+</div>
+
+<script>
+/* ===== DOM ===== */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const overlay = document.getElementById("overlay");
+const finalScore = document.getElementById("finalScore");
+const joystick = document.getElementById("joystick");
+const mobileBtn = document.getElementById("mobileBtn");
+const pauseBtn = document.getElementById("pause");
+
+/* ===== GAME ===== */
+const box = 20, grid = 20;
+let snake, food, dir, score;
+let paused=false, gameOver=false;
+let speedDelay=280, lastMove=0;
+let bestScore = Number(localStorage.getItem("htcja_best")) || 0;
+let mobile=false;
+
+/* ===== HELPERS ===== */
+function scoreUI(){
+  scoreEl.textContent = `Score: ${score} | Best: ${bestScore}`;
+}
+
+function spawnFood(){
+  food = {
+    x: Math.floor(Math.random()*grid),
+    y: Math.floor(Math.random()*grid)
+  };
+}
+
+/* ===== INPUT ===== */
+function setDir(d){
+  if(gameOver||paused) return;
+  if(snake.length>1){
+    if(
+      (dir==="UP"&&d==="DOWN")||
+      (dir==="DOWN"&&d==="UP")||
+      (dir==="LEFT"&&d==="RIGHT")||
+      (dir==="RIGHT"&&d==="LEFT")
+    ) return;
+  }
+  dir=d;
+}
+
+document.addEventListener("keydown",e=>{
+  const m={ArrowUp:"UP",ArrowDown:"DOWN",ArrowLeft:"LEFT",ArrowRight:"RIGHT",w:"UP",a:"LEFT",s:"DOWN",d:"RIGHT"};
+  if(m[e.key]) setDir(m[e.key]);
+});
+
+document.getElementById("speed").oninput=e=>{
+  speedDelay = 420 - (e.target.value*35);
+};
+
+pauseBtn.onclick=()=>{
+  paused=!paused;
+  pauseBtn.textContent = paused?"Resume":"Pause";
+};
+
+/* ===== MOBILE MODE ===== */
+mobileBtn.onclick=()=>{
+  mobile=!mobile;
+  joystick.style.display = mobile?"grid":"none";
+  mobileBtn.textContent = mobile?"Mobile ON":"Mobile Mode";
+};
+
+/* ===== DRAW ===== */
+function drawGrid(){
+  for(let y=0;y<grid;y++){
+    for(let x=0;x<grid;x++){
+      ctx.fillStyle=(x+y)%2?"#0f3":"#084";
+      ctx.fillRect(x*box,y*box,box,box);
+    }
+  }
+}
+
+function drawCapRect(x,y,w,h,r,d){
+  ctx.beginPath();
+  if(d==="UP"){
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);
+    ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+  }
+  if(d==="DOWN"){
+    ctx.moveTo(x,y);ctx.lineTo(x+w,y);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  }
+  if(d==="LEFT"){
+    ctx.moveTo(x+r,y);ctx.quadraticCurveTo(x,y,x,y+r);
+    ctx.lineTo(x,y+h-r);ctx.quadraticCurveTo(x,y+h,x+r,y+h);
+    ctx.lineTo(x+w,y+h);ctx.lineTo(x+w,y);
+  }
+  if(d==="RIGHT"){
+    ctx.moveTo(x,y);ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x,y+h);
+  }
+  ctx.closePath();ctx.fill();
+}
+
+function draw(){
+  ctx.clearRect(0,0,400,400);
+  drawGrid();
+
+  ctx.fillStyle="red";
+  ctx.beginPath();
+  ctx.arc(food.x*box+10,food.y*box+10,7,0,Math.PI*2);
+  ctx.fill();
+
+  snake.forEach((s,i)=>{
+    s.x+=(s.tx-s.x)*0.35;
+    s.y+=(s.ty-s.y)*0.35;
+    ctx.fillStyle=i? "var(--tail)":"var(--snake)";
+    i
+      ? ctx.fillRect(s.x,s.y,box,box)
+      : drawCapRect(s.x,s.y,box,box,6,dir||"UP");
+  });
+}
+
+/* ===== LOGIC ===== */
+function update(){
+  if(!dir) return;
+  const h=snake[0];
+  let nx=h.gx, ny=h.gy;
+  if(dir==="UP")ny--; if(dir==="DOWN")ny++;
+  if(dir==="LEFT")nx--; if(dir==="RIGHT")nx++;
+
+  if(nx<0||ny<0||nx>=grid||ny>=grid) return end();
+
+  for(let i=1;i<snake.length;i++)
+    if(snake[i].gx===nx&&snake[i].gy===ny) return end();
+
+  snake.unshift({gx:nx,gy:ny,x:h.x,y:h.y,tx:nx*box,ty:ny*box});
+
+  if(nx===food.x && ny===food.y){
+    score++;
+    if(score>bestScore){
+      bestScore=score;
+      localStorage.setItem("htcja_best",bestScore);
+    }
+    scoreUI(); spawnFood();
+  } else snake.pop();
+}
+
+function end(){
+  gameOver=true;
+  finalScore.textContent=`Score: ${score} | Best: ${bestScore}`;
+  overlay.style.display="flex";
+}
+
+function resetGame(){
+  snake=[{gx:8,gy:8,x:160,y:160,tx:160,ty:160}];
+  dir=null; score=0; paused=false; gameOver=false;
+  overlay.style.display="none";
+  scoreUI(); spawnFood();
+}
+
+/* ===== LOOP ===== */
+resetGame();
+function loop(t){
+  if(!paused&&!gameOver&&t-lastMove>speedDelay){
+    update(); lastMove=t;
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

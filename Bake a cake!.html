@@ -1,0 +1,815 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+    <title>Perfect Pastry: Baker's Blitz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;800&display=swap');
+
+        :root {
+            --bg-color: #FFF5E1;
+            --primary: #FF9F43;
+            --secondary: #FECA57;
+            --accent: #EE5253;
+            --text: #222f3e;
+            --ui-bg: rgba(255, 255, 255, 0.9);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Nunito', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            color: var(--text);
+        }
+
+        #game-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+        }
+
+        .hud-pill {
+            background: var(--ui-bg);
+            backdrop-filter: blur(8px);
+            padding: 8px 24px;
+            border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--text);
+            border: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 245, 225, 0.98);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+            pointer-events: auto;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            line-height: 1.1;
+            color: var(--accent);
+            text-align: center;
+            font-weight: 900;
+            text-shadow: 2px 2px 0px var(--secondary);
+            margin-bottom: 1rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            text-align: center;
+            max-width: 85%;
+            border-bottom: 6px solid #f1f2f6;
+        }
+
+        .card p {
+            margin: 0.8rem 0;
+            font-size: 1.1rem;
+            color: #576574;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .highlight {
+            color: var(--accent);
+            font-weight: 800;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            padding: 1rem 3.5rem;
+            border-radius: 99px;
+            border: none;
+            box-shadow: 0 6px 0 #e67e22;
+            cursor: pointer;
+            margin-top: 2rem;
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #e67e22;
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .anim-bounce { animation: bounce 2s infinite ease-in-out; }
+
+        #toast {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--accent);
+            text-shadow: 3px 3px 0 white, 0 0 20px rgba(238, 82, 83, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+            transition: opacity 0.2s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.flex{display:flex}.hidden{display:none}.w-full{width:100%}.justify-between{justify-content:space-between}</style></head>
+<body>
+
+    <!-- Game Canvas -->
+    <div id="game-container">
+        <canvas id="gameCanvas" width="217" height="636"></canvas>
+    </div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <div class="flex justify-between w-full">
+            <div class="hud-pill">
+                <span>⭐</span>
+                <span id="scoreVal">0</span>
+            </div>
+            <div class="hud-pill" id="phaseLabel">
+                MIX
+            </div>
+        </div>
+        <div id="toast">PERFECT!</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <div class="anim-bounce">
+            <h1>Perfect<br>Pastry</h1>
+        </div>
+        <div class="card">
+            <p>🥣 <span class="highlight">Slide</span> to Catch</p>
+            <p>⏱️ <span class="highlight">Tap</span> on Green</p>
+            <p>🍓 <span class="highlight">Tap</span> to Top</p>
+            <p>😋 <span class="highlight">Rub</span> to Eat!</p>
+        </div>
+        <button class="btn" id="btn-start">Let's Bake!</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color: var(--text);">Oops!</h1>
+        <div class="card">
+            <p id="fail-reason" style="font-size: 1.4rem; color: var(--accent); font-weight: bold;">Burnt it!</p>
+            <div style="margin-top: 1.5rem; font-size: 0.9rem; text-transform: uppercase; color: #8395a7;">Cakes Eaten</div>
+            <div id="final-score" style="font-size: 5rem; color: var(--primary); font-weight: 900; line-height: 1;">0</div>
+        </div>
+        <button class="btn" id="btn-restart">Try Again</button>
+    </div>
+
+    <script>
+        /* 
+           PERFECT PASTRY: BAKER'S BLITZ
+           A 4-phase casual game.
+           Phase 1: Mix (Catch ingredients)
+           Phase 2: Bake (Timing reflex)
+           Phase 3: Deco (Shooting/Timing)
+           Phase 4: Eat (Scratch-off mechanic)
+        */
+
+        // --- AUDIO ENGINE ---
+        const AudioSys = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            playTone(freq, type, dur, vol = 0.1, slide = 0) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                if (slide !== 0) {
+                    osc.frequency.linearRampToValueAtTime(freq + slide, this.ctx.currentTime + dur);
+                }
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + dur);
+            },
+            sfx: {
+                tap: () => AudioSys.playTone(600, 'sine', 0.1, 0.05),
+                catch: () => AudioSys.playTone(400 + Math.random()*200, 'triangle', 0.15, 0.1),
+                bad: () => AudioSys.playTone(150, 'sawtooth', 0.5, 0.2, -50),
+                shoot: () => AudioSys.playTone(300, 'square', 0.1, 0.05, 100),
+                hit: () => AudioSys.playTone(200, 'sine', 0.1, 0.1),
+                win: () => {
+                    [523.25, 659.25, 783.99].forEach((f, i) => {
+                        setTimeout(() => AudioSys.playTone(f, 'sine', 0.3, 0.1), i * 80);
+                    });
+                },
+                rub: () => {
+                    if(Math.random() > 0.7) AudioSys.playTone(100 + Math.random()*50, 'triangle', 0.05, 0.05);
+                }
+            }
+        };
+
+        // --- GAME STATE ---
+        const STATE = { MENU: 0, PLAY: 1, OVER: 2 };
+        const PHASE = { MIX: 0, BAKE: 1, DECO: 2, EAT: 3 };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        // Offscreen canvas for scratch-off
+        const scratchCanvas = document.createElement('canvas');
+        const scratchCtx = scratchCanvas.getContext('2d', { willReadFrequently: true });
+
+        let game = {
+            state: STATE.MENU,
+            phase: PHASE.MIX,
+            width: 0,
+            height: 0,
+            score: 0,
+            difficulty: 1,
+            
+            // Mix Phase
+            bowl: { x: 0, y: 0, targetX: 0 },
+            ingredients: [],
+            caught: 0,
+            targetCatch: 5,
+            
+            // Bake Phase
+            bakeTime: 0,
+            bakeDir: 1,
+            bakeSpeed: 0.01,
+            
+            // Deco Phase
+            cakeRot: 0,
+            toppings: [],
+            bullets: [],
+            targetToppings: 5,
+            
+            // Eat Phase
+            totalPixels: 1,
+            leftPixels: 1,
+            checkFrame: 0,
+            
+            particles: []
+        };
+
+        // --- RESIZE & INPUT ---
+        function resize() {
+            game.width = window.innerWidth;
+            game.height = window.innerHeight;
+            canvas.width = game.width;
+            canvas.height = game.height;
+            
+            scratchCanvas.width = game.width;
+            scratchCanvas.height = game.height;
+            
+            game.bowl.y = game.height - 150;
+            if (game.state === STATE.MENU) {
+                game.bowl.x = game.width / 2;
+                game.bowl.targetX = game.width / 2;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function handleInput(x, y, type) {
+            if (game.state !== STATE.PLAY) return;
+
+            if (game.phase === PHASE.MIX) {
+                game.bowl.targetX = x;
+            } else if (game.phase === PHASE.BAKE) {
+                if (type === 'tap') checkBake();
+            } else if (game.phase === PHASE.DECO) {
+                if (type === 'tap') shootTopping();
+            } else if (game.phase === PHASE.EAT) {
+                rubCake(x, y);
+            }
+        }
+
+        // Touch
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const t = e.touches[0];
+            handleInput(t.clientX, t.clientY, 'tap');
+        }, {passive: false});
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const t = e.touches[0];
+            handleInput(t.clientX, t.clientY, 'move');
+        }, {passive: false});
+
+        // Mouse (for testing)
+        let mouseDown = false;
+        canvas.addEventListener('mousedown', e => {
+            mouseDown = true;
+            handleInput(e.clientX, e.clientY, 'tap');
+        });
+        canvas.addEventListener('mousemove', e => {
+            if(mouseDown) handleInput(e.clientX, e.clientY, 'move');
+        });
+        window.addEventListener('mouseup', () => mouseDown = false);
+
+        // --- GAME LOGIC ---
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 1000);
+        }
+
+        function setPhase(p) {
+            game.phase = p;
+            const labels = ["MIX IT!", "BAKE IT!", "TOP IT!", "EAT IT!"];
+            document.getElementById('phaseLabel').innerText = labels[p];
+            showToast(labels[p]);
+
+            if (p === PHASE.MIX) {
+                game.ingredients = [];
+                game.caught = 0;
+                game.targetCatch = 5 + Math.floor(game.difficulty);
+            } else if (p === PHASE.BAKE) {
+                game.bakeTime = 0;
+                game.bakeDir = 1;
+                game.bakeSpeed = 0.01 + (game.difficulty * 0.002);
+            } else if (p === PHASE.DECO) {
+                game.cakeRot = 0;
+                game.toppings = [];
+                game.bullets = [];
+                game.targetToppings = 4 + Math.floor(game.difficulty * 0.5);
+            } else if (p === PHASE.EAT) {
+                initEatPhase();
+            }
+        }
+
+        function fail(reason) {
+            game.state = STATE.OVER;
+            AudioSys.sfx.bad();
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('fail-reason').innerText = reason;
+            document.getElementById('final-score').innerText = game.score;
+        }
+
+        function spawnParticles(x, y, color, count=10) {
+            for(let i=0; i<count; i++) {
+                game.particles.push({
+                    x, y,
+                    vx: (Math.random()-0.5) * 10,
+                    vy: (Math.random()-0.5) * 10,
+                    life: 1.0,
+                    color,
+                    size: Math.random()*6 + 2
+                });
+            }
+        }
+
+        // -- MIX LOGIC --
+        function updateMix() {
+            game.bowl.x += (game.bowl.targetX - game.bowl.x) * 0.2;
+            
+            // Spawn
+            if (Math.random() < 0.03 * game.difficulty) {
+                const isBad = Math.random() > 0.9;
+                game.ingredients.push({
+                    x: Math.random() * (game.width - 60) + 30,
+                    y: -50,
+                    type: isBad ? 'bad' : (Math.random()>0.5 ? 'egg' : 'flour'),
+                    speed: 5 + Math.random() * 5 + game.difficulty,
+                    rot: Math.random() * 6
+                });
+            }
+
+            for(let i=game.ingredients.length-1; i>=0; i--) {
+                let item = game.ingredients[i];
+                item.y += item.speed;
+                item.rot += 0.05;
+
+                // Collision
+                const dx = game.bowl.x - item.x;
+                const dy = game.bowl.y - item.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 60 && item.y < game.bowl.y + 20) {
+                    if (item.type === 'bad') {
+                        fail("Ew! Fish in the mix!");
+                        return;
+                    } else {
+                        AudioSys.sfx.catch();
+                        spawnParticles(item.x, item.y, '#FFF');
+                        game.caught++;
+                        game.ingredients.splice(i, 1);
+                        if(game.caught >= game.targetCatch) {
+                            AudioSys.sfx.win();
+                            setPhase(PHASE.BAKE);
+                        }
+                    }
+                } else if(item.y > game.height) {
+                    game.ingredients.splice(i, 1);
+                }
+            }
+        }
+
+        // -- BAKE LOGIC --
+        function updateBake() {
+            game.bakeTime += game.bakeSpeed * game.bakeDir;
+            if (game.bakeTime >= 1 || game.bakeTime <= 0) game.bakeDir *= -1;
+        }
+
+        function checkBake() {
+            // Sweet spot: 0.4 - 0.6
+            if (game.bakeTime > 0.4 && game.bakeTime < 0.6) {
+                AudioSys.sfx.win();
+                spawnParticles(game.width/2, game.height/2, '#FF9F43', 30);
+                setTimeout(() => setPhase(PHASE.DECO), 500);
+            } else {
+                fail(game.bakeTime < 0.4 ? "Raw Dough!" : "Burnt Cake!");
+            }
+        }
+
+        // -- DECO LOGIC --
+        function updateDeco() {
+            game.cakeRot += 0.02;
+
+            for(let i=game.bullets.length-1; i>=0; i--) {
+                let b = game.bullets[i];
+                b.y -= 20; // speed
+
+                // Hit cake center
+                if (b.y < game.height/2 + 80) {
+                    // Calculate angle on cake
+                    let hitAngle = (Math.PI/2 - game.cakeRot) % (Math.PI*2);
+                    if (hitAngle < 0) hitAngle += Math.PI*2;
+
+                    // Check collision
+                    let crash = false;
+                    for(let t of game.toppings) {
+                        let d = Math.abs(t.angle - hitAngle);
+                        if (d > Math.PI) d = Math.PI*2 - d;
+                        if (d < 0.4) crash = true;
+                    }
+
+                    if (crash) {
+                        fail("Messy Toppings!");
+                        return;
+                    } else {
+                        AudioSys.sfx.hit();
+                        game.toppings.push({ angle: hitAngle, color: b.color });
+                        game.bullets.splice(i, 1);
+                        spawnParticles(game.width/2, game.height/2 + 80, b.color);
+                        
+                        if(game.toppings.length >= game.targetToppings) {
+                            AudioSys.sfx.win();
+                            setTimeout(() => setPhase(PHASE.EAT), 800);
+                        }
+                    }
+                }
+            }
+        }
+
+        function shootTopping() {
+            AudioSys.sfx.shoot();
+            game.bullets.push({
+                x: game.width/2,
+                y: game.height - 100,
+                color: Math.random()>0.5 ? '#EE5253' : '#2e86de'
+            });
+        }
+
+        // -- EAT LOGIC --
+        function initEatPhase() {
+            // Draw cake to offscreen canvas
+            scratchCtx.clearRect(0,0,game.width, game.height);
+            
+            const cx = game.width/2;
+            const cy = game.height/2;
+
+            scratchCtx.save();
+            scratchCtx.translate(cx, cy);
+            
+            // Cake Base
+            scratchCtx.fillStyle = '#fab1a0';
+            scratchCtx.beginPath(); scratchCtx.arc(0,0, 100, 0, Math.PI*2); scratchCtx.fill();
+            scratchCtx.fillStyle = '#ffeaa7';
+            scratchCtx.beginPath(); scratchCtx.arc(0,0, 90, 0, Math.PI*2); scratchCtx.fill();
+
+            // Toppings
+            game.toppings.forEach(t => {
+                scratchCtx.save();
+                scratchCtx.rotate(t.angle);
+                scratchCtx.translate(0, -70);
+                scratchCtx.fillStyle = t.color;
+                scratchCtx.beginPath(); scratchCtx.arc(0,0, 15, 0, Math.PI*2); scratchCtx.fill();
+                scratchCtx.restore();
+            });
+            scratchCtx.restore();
+
+            // Count pixels
+            const id = scratchCtx.getImageData(cx-110, cy-110, 220, 220);
+            let count = 0;
+            for(let i=3; i<id.data.length; i+=4) {
+                if(id.data[i] > 0) count++;
+            }
+            game.totalPixels = count;
+            game.leftPixels = count;
+        }
+
+        function rubCake(x, y) {
+            AudioSys.sfx.rub();
+            scratchCtx.globalCompositeOperation = 'destination-out';
+            scratchCtx.beginPath();
+            scratchCtx.arc(x, y, 40, 0, Math.PI*2);
+            scratchCtx.fill();
+            scratchCtx.globalCompositeOperation = 'source-over';
+            
+            spawnParticles(x, y, '#ffeaa7', 2);
+        }
+
+        function updateEat() {
+            game.checkFrame++;
+            if (game.checkFrame % 10 === 0) {
+                const cx = game.width/2;
+                const cy = game.height/2;
+                const id = scratchCtx.getImageData(cx-110, cy-110, 220, 220);
+                let count = 0;
+                for(let i=3; i<id.data.length; i+=4) {
+                    if(id.data[i] > 0) count++;
+                }
+                game.leftPixels = count;
+
+                if (game.leftPixels / game.totalPixels < 0.02) {
+                    // Win Round
+                    game.score++;
+                    game.difficulty += 0.5;
+                    document.getElementById('scoreVal').innerText = game.score;
+                    AudioSys.sfx.win();
+                    showToast("DELICIOUS!");
+                    spawnParticles(cx, cy, '#FFD700', 50);
+                    setTimeout(() => setPhase(PHASE.MIX), 1500);
+                }
+            }
+        }
+
+        // --- DRAWING ---
+        function draw() {
+            // Clear
+            ctx.fillStyle = '#FFF5E1';
+            ctx.fillRect(0,0, game.width, game.height);
+
+            // Pattern
+            ctx.fillStyle = 'rgba(255, 159, 67, 0.05)';
+            for(let i=0; i<game.width; i+=60) ctx.fillRect(i, 0, 30, game.height);
+
+            if (game.phase === PHASE.MIX) drawMix();
+            else if (game.phase === PHASE.BAKE) drawBake();
+            else if (game.phase === PHASE.DECO) drawDeco();
+            else if (game.phase === PHASE.EAT) drawEat();
+
+            // Particles
+            for(let i=game.particles.length-1; i>=0; i--) {
+                let p = game.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.05;
+                if(p.life <= 0) {
+                    game.particles.splice(i, 1);
+                    continue;
+                }
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawMix() {
+            // Bowl
+            ctx.fillStyle = '#54a0ff';
+            ctx.beginPath();
+            ctx.arc(game.bowl.x, game.bowl.y, 60, 0, Math.PI, false);
+            ctx.fill();
+            
+            // Fill
+            if (game.caught > 0) {
+                let h = (game.caught / game.targetCatch) * 40;
+                ctx.fillStyle = '#ffeaa7';
+                ctx.beginPath();
+                ctx.arc(game.bowl.x, game.bowl.y, 50, 0, Math.PI, false);
+                ctx.fill();
+            }
+
+            // Ingredients
+            game.ingredients.forEach(p => {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                if (p.type === 'egg') {
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath(); ctx.ellipse(0,0, 15, 20, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fdcb6e';
+                    ctx.beginPath(); ctx.arc(0, 5, 8, 0, Math.PI*2); ctx.fill();
+                } else if (p.type === 'flour') {
+                    ctx.fillStyle = '#dfe6e9';
+                    ctx.fillRect(-15, -20, 30, 40);
+                    ctx.strokeStyle = '#b2bec3'; ctx.strokeRect(-15, -20, 30, 40);
+                } else {
+                    // Fish
+                    ctx.fillStyle = '#636e72';
+                    ctx.beginPath(); ctx.moveTo(15,0); ctx.lineTo(-15, 10); ctx.lineTo(-15, -10); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-5, -2, 2, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.restore();
+            });
+            
+            ctx.fillStyle = '#222f3e';
+            ctx.font = 'bold 24px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${game.caught}/${game.targetCatch}`, game.width/2, 120);
+        }
+
+        function drawBake() {
+            const cx = game.width/2;
+            const cy = game.height/2;
+            
+            // Oven Bar
+            ctx.fillStyle = '#dfe6e9';
+            ctx.beginPath(); ctx.roundRect(cx - 150, cy - 25, 300, 50, 25); ctx.fill();
+            
+            // Zone
+            ctx.fillStyle = '#00b894';
+            ctx.fillRect(cx - 150 + (300*0.4), cy - 25, 300*0.2, 50);
+            
+            // Cursor
+            let x = cx - 150 + (300 * game.bakeTime);
+            ctx.fillStyle = '#ff7675';
+            ctx.beginPath(); ctx.arc(x, cy, 30, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+            
+            ctx.fillStyle = '#222f3e';
+            ctx.font = 'bold 24px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText("Tap on GREEN!", cx, cy - 80);
+        }
+
+        function drawDeco() {
+            const cx = game.width/2;
+            const cy = game.height/2;
+
+            // Cake
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(game.cakeRot);
+            
+            // Plate
+            ctx.fillStyle = '#FFF';
+            ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(0,0, 110, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Body
+            ctx.fillStyle = '#fab1a0';
+            ctx.beginPath(); ctx.arc(0,0, 90, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ffeaa7';
+            ctx.beginPath(); ctx.arc(0,0, 80, 0, Math.PI*2); ctx.fill();
+
+            // Existing Toppings
+            game.toppings.forEach(t => {
+                ctx.save();
+                ctx.rotate(t.angle);
+                ctx.translate(0, -70);
+                ctx.fillStyle = t.color;
+                ctx.beginPath(); ctx.arc(0,0, 12, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            });
+            ctx.restore();
+
+            // Bullets
+            game.bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.beginPath(); ctx.arc(b.x, b.y, 12, 0, Math.PI*2); ctx.fill();
+            });
+
+            // Shooter
+            ctx.fillStyle = '#636e72';
+            ctx.beginPath(); ctx.moveTo(cx, game.height-80); ctx.lineTo(cx-20, game.height); ctx.lineTo(cx+20, game.height); ctx.fill();
+            
+            ctx.fillStyle = '#222f3e';
+            ctx.font = 'bold 24px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${game.toppings.length}/${game.targetToppings}`, cx, cy - 150);
+        }
+
+        function drawEat() {
+            const cx = game.width/2;
+            const cy = game.height/2;
+
+            // Empty Plate Background
+            ctx.fillStyle = '#FFF';
+            ctx.shadowColor = 'rgba(0,0,0,0.1)'; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(cx, cy, 110, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Draw Scratch Canvas
+            ctx.drawImage(scratchCanvas, 0, 0);
+
+            // Text
+            let pct = Math.floor((game.leftPixels / game.totalPixels) * 100);
+            ctx.fillStyle = '#222f3e';
+            ctx.font = 'bold 24px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Crumbs: ${pct}%`, cx, cy - 160);
+            
+            ctx.font = '18px Nunito';
+            ctx.fillStyle = '#636e72';
+            ctx.fillText("Rub screen to eat!", cx, cy + 160);
+        }
+
+        function loop() {
+            if (game.state === STATE.PLAY) {
+                if (game.phase === PHASE.MIX) updateMix();
+                else if (game.phase === PHASE.BAKE) updateBake();
+                else if (game.phase === PHASE.DECO) updateDeco();
+                else if (game.phase === PHASE.EAT) updateEat();
+            }
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // --- INIT ---
+        function startGame() {
+            AudioSys.init();
+            AudioSys.sfx.tap();
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            game.state = STATE.PLAY;
+            game.score = 0;
+            game.difficulty = 1;
+            document.getElementById('scoreVal').innerText = '0';
+            setPhase(PHASE.MIX);
+        }
+
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', startGame);
+
+        loop();
+
+    </script>
+
+</body></html>

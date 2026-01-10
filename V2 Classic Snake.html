@@ -1,0 +1,723 @@
+<html lang="en" class="dark"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1, viewport-fit=cover">
+    <title>Custom Block Snake</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        plastic: {
+                            light: '#f0f0f0',
+                            dark: '#1f2937',
+                            borderLight: '#ffffff',
+                            borderDark: '#374151',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+            font-family: 'JetBrains Mono', monospace;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #111; /* Fallback */
+            transition: background-color 0.3s ease;
+        }
+
+        /* Dark/Light Backgrounds handled by JS/Canvas, but body matches for overscroll */
+        body.dark { background-color: #111827; }
+        body:not(.dark) { background-color: #2e8b57; }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: currentColor;
+            margin-top: -10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            border: 2px solid white;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(128,128,128,0.5);
+            border-radius: 2px;
+        }
+
+        /* Plastic UI Styling */
+        .plastic-panel {
+            border-width: 4px;
+            border-style: solid;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        
+        /* Light Mode Panel */
+        :not(.dark) .plastic-panel {
+            background-color: #f0f0f0;
+            border-color: #ffffff;
+            border-bottom-color: #9ca3af;
+            border-right-color: #9ca3af;
+            color: #1f2937;
+        }
+
+        /* Dark Mode Panel */
+        .dark .plastic-panel {
+            background-color: #1f2937;
+            border-color: #374151;
+            border-bottom-color: #111827;
+            border-right-color: #111827;
+            color: #f3f4f6;
+        }
+
+        .plastic-btn {
+            border-width: 4px;
+            border-style: solid;
+            transition: transform 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .plastic-btn:active {
+            transform: translate(2px, 2px);
+            border-top-color: inherit !important;
+            border-left-color: inherit !important;
+        }
+
+        .btn-primary {
+            background-color: #ef4444;
+            border-color: #f87171;
+            border-bottom-color: #b91c1c;
+            border-right-color: #b91c1c;
+            color: white;
+        }
+        .btn-primary:active {
+            border-color: #b91c1c;
+        }
+
+        .btn-secondary {
+            background-color: #3b82f6;
+            border-color: #60a5fa;
+            border-bottom-color: #1d4ed8;
+            border-right-color: #1d4ed8;
+            color: white;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 800;
+            opacity: 0.8;
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.pointer-events-none{pointer-events:none}.pointer-events-auto{pointer-events:auto}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.left-0{left:0px}.top-0{top:0px}.z-10{z-index:10}.mb-1{margin-bottom:0.25rem}.mb-2{margin-bottom:0.5rem}.mt-2{margin-top:0.5rem}.block{display:block}.flex{display:flex}.hidden{display:none}.h-10{height:2.5rem}.h-full{height:100%}.max-h-\[90vh\]{max-height:90vh}.w-10{width:2.5rem}.w-\[90\%\]{width:90%}.w-full{width:100%}.max-w-sm{max-width:24rem}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:0.25rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.overflow-y-auto{overflow-y:auto}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border-2{border-width:2px}.border-black\/10{border-color:rgb(0 0 0 / 0.1)}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-black\/5{background-color:rgb(0 0 0 / 0.05)}.bg-gray-200{--tw-bg-opacity:1;background-color:rgb(229 231 235 / var(--tw-bg-opacity, 1))}.bg-opacity-90{--tw-bg-opacity:0.9}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-5xl{font-size:3rem;line-height:1}.text-6xl{font-size:3.75rem;line-height:1}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-black{font-weight:900}.font-bold{font-weight:700}.font-extrabold{font-weight:800}.leading-none{line-height:1}.tracking-tighter{letter-spacing:-0.05em}.text-blue-500{--tw-text-opacity:1;color:rgb(59 130 246 / var(--tw-text-opacity, 1))}.text-green-500{--tw-text-opacity:1;color:rgb(34 197 94 / var(--tw-text-opacity, 1))}.text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity, 1))}.opacity-60{opacity:0.6}.opacity-70{opacity:0.7}.opacity-80{opacity:0.8}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-sm{--tw-backdrop-blur:blur(4px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.dark\:border-gray-600:is(.dark *){--tw-border-opacity:1;border-color:rgb(75 85 99 / var(--tw-border-opacity, 1))}.dark\:border-white\/10:is(.dark *){border-color:rgb(255 255 255 / 0.1)}.dark\:bg-gray-700:is(.dark *){--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}.dark\:bg-white\/5:is(.dark *){background-color:rgb(255 255 255 / 0.05)}</style></head>
+<body>
+
+    <div id="game-container" class="relative w-full h-full">
+        <canvas id="gameCanvas" width="827" height="636"></canvas>
+        
+        <!-- UI Layer -->
+        <div id="ui-layer" class="absolute inset-0 flex flex-col justify-center items-center pointer-events-none z-10">
+            
+            <!-- Start Screen -->
+            <div id="start-screen" class="plastic-panel p-6 max-w-sm w-[90%] pointer-events-auto flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+                <div class="text-center mb-2">
+                    <h1 class="text-5xl font-extrabold mb-1 tracking-tighter">SNAKE</h1>
+                    <p class="text-sm opacity-70">CUSTOM BASEPLATE EDITION</p>
+                </div>
+
+                <!-- Settings -->
+                <div class="bg-black/5 dark:bg-white/5 p-4 rounded-xl border-2 border-black/10 dark:border-white/10">
+                    <!-- Width X -->
+                    <div class="setting-row">
+                        <div class="setting-label">
+                            <span>WIDTH (X)</span>
+                            <span id="val-cols">15</span>
+                        </div>
+                        <input type="range" id="inp-cols" min="5" max="25" value="15" class="text-blue-500">
+                    </div>
+
+                    <!-- Height Y -->
+                    <div class="setting-row">
+                        <div class="setting-label">
+                            <span>HEIGHT (Y)</span>
+                            <span id="val-rows">25</span>
+                        </div>
+                        <input type="range" id="inp-rows" min="10" max="40" value="25" class="text-blue-500">
+                    </div>
+
+                    <!-- Speed -->
+                    <div class="setting-row">
+                        <div class="setting-label">
+                            <span>SPEED</span>
+                            <span id="val-speed">NORMAL</span>
+                        </div>
+                        <input type="range" id="inp-speed" min="1" max="10" value="5" class="text-green-500">
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="font-bold text-sm opacity-80">THEME</span>
+                        <button id="theme-btn" class="px-4 py-2 rounded-lg font-bold text-xs bg-gray-200 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600">DARK MODE</button>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="plastic-btn btn-primary text-2xl py-4 rounded-xl w-full font-bold shadow-lg mt-2">
+                    PLAY
+                </button>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="hidden plastic-panel p-8 max-w-sm w-[90%] text-center pointer-events-auto flex flex-col items-center gap-6">
+                <h2 class="text-5xl font-black text-red-500">CRASH!</h2>
+                
+                <div class="flex flex-col gap-1">
+                    <span class="text-xl opacity-60">SCORE</span>
+                    <span id="finalScore" class="text-6xl font-bold">0</span>
+                </div>
+
+                <div class="w-full flex flex-col gap-3">
+                    <button id="restart-btn" class="plastic-btn btn-primary text-xl py-3 rounded-xl w-full font-bold">
+                        RETRY
+                    </button>
+                    <button id="menu-btn" class="plastic-btn btn-secondary text-xl py-3 rounded-xl w-full font-bold">
+                        MENU
+                    </button>
+                </div>
+            </div>
+            
+            <!-- HUD -->
+            <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none hidden">
+                <div class="plastic-panel px-4 py-2 rounded-lg border-2 bg-opacity-90 backdrop-blur-sm">
+                    <span class="text-xs font-bold block opacity-60">SCORE</span>
+                    <span id="score" class="text-2xl font-bold leading-none">0</span>
+                </div>
+                <button id="sound-btn" class="pointer-events-auto plastic-panel w-10 h-10 flex items-center justify-center rounded-lg text-xl border-2 bg-opacity-90 backdrop-blur-sm">
+                    🔊
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CONFIGURATION & ASSETS
+         */
+        const THEMES = {
+            light: {
+                bg: '#2e8b57',
+                base: '#2e8b57',
+                stud: '#00A035',
+                studShadow: 'rgba(0,0,0,0.2)',
+                studHighlight: 'rgba(255,255,255,0.1)',
+                snakeHead: '#EAB308', // Yellow
+                snakeBody: '#FACC15',
+                apple: '#DC2626',
+                border: '#14532d'
+            },
+            dark: {
+                bg: '#111827',
+                base: '#1f2937', // Gray 800
+                stud: '#374151', // Gray 700
+                studShadow: 'rgba(0,0,0,0.5)',
+                studHighlight: 'rgba(255,255,255,0.05)',
+                snakeHead: '#10B981', // Emerald
+                snakeBody: '#34D399',
+                apple: '#EF4444', // Red
+                border: '#000000'
+            }
+        };
+
+        const ASSETS = {
+            bgm: "https://storage.googleapis.com/rezona-ai-prod/games/assets/audio/0000/85d6d9e5-e421-407f-9856-f5bf14942ea0.mp3",
+            eat: "https://storage.googleapis.com/rezona-ai-prod/games/assets/audio/0000/6a85da48-ebe2-4973-b53a-e15cce5e2322.mp3", 
+            crash: "https://storage.googleapis.com/rezona-ai-prod/games/assets/audio/0000/d70feecf-daf5-4f87-a7e1-a47cc63d25f9.mp3" 
+        };
+
+        /**
+         * STATE
+         */
+        const STATE = {
+            active: false,
+            theme: 'dark', // Default dark
+            settings: {
+                cols: 15,
+                rows: 25,
+                speedIdx: 5
+            },
+            grid: {
+                size: 0,
+                offsetX: 0,
+                offsetY: 0,
+                widthPx: 0,
+                heightPx: 0
+            },
+            snake: [],
+            food: { x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+            inputQueue: [],
+            score: 0,
+            lastTime: 0,
+            soundOn: true
+        };
+
+        const audioCtx = { bgm: null, sfx: {} };
+        
+        // DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const bgCanvas = document.createElement('canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        
+        // UI Elements
+        const ui = {
+            start: document.getElementById('start-screen'),
+            gameOver: document.getElementById('game-over-screen'),
+            hud: document.getElementById('hud'),
+            score: document.getElementById('score'),
+            finalScore: document.getElementById('finalScore'),
+            inputs: {
+                cols: document.getElementById('inp-cols'),
+                rows: document.getElementById('inp-rows'),
+                speed: document.getElementById('inp-speed'),
+                themeBtn: document.getElementById('theme-btn')
+            },
+            displays: {
+                cols: document.getElementById('val-cols'),
+                rows: document.getElementById('val-rows'),
+                speed: document.getElementById('val-speed')
+            }
+        };
+
+        /**
+         * INIT
+         */
+        function init() {
+            // Audio Setup
+            audioCtx.bgm = new Audio(ASSETS.bgm);
+            audioCtx.bgm.loop = true;
+            audioCtx.bgm.volume = 0.3;
+            audioCtx.sfx.eat = new Audio(ASSETS.eat);
+            audioCtx.sfx.crash = new Audio(ASSETS.crash);
+
+            // Bind UI
+            bindSettings();
+            bindControls();
+
+            // Initial Resize & Render
+            resize();
+            window.addEventListener('resize', () => {
+                resize();
+            });
+
+            // Start Loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        function bindSettings() {
+            // Cols
+            ui.inputs.cols.addEventListener('input', (e) => {
+                STATE.settings.cols = parseInt(e.target.value);
+                ui.displays.cols.innerText = STATE.settings.cols;
+                resize(); // Trigger preview
+            });
+
+            // Rows
+            ui.inputs.rows.addEventListener('input', (e) => {
+                STATE.settings.rows = parseInt(e.target.value);
+                ui.displays.rows.innerText = STATE.settings.rows;
+                resize(); // Trigger preview
+            });
+
+            // Speed
+            ui.inputs.speed.addEventListener('input', (e) => {
+                STATE.settings.speedIdx = parseInt(e.target.value);
+                const speeds = ['SLOWEST', 'SLOW', 'NORMAL', 'FAST', 'TURBO'];
+                // Map 1-10 to text roughly
+                let label = 'NORMAL';
+                if (STATE.settings.speedIdx <= 2) label = 'SNAIL';
+                else if (STATE.settings.speedIdx <= 4) label = 'SLOW';
+                else if (STATE.settings.speedIdx <= 6) label = 'NORMAL';
+                else if (STATE.settings.speedIdx <= 8) label = 'FAST';
+                else label = 'HYPER';
+                ui.displays.speed.innerText = label;
+            });
+
+            // Theme
+            ui.inputs.themeBtn.addEventListener('click', () => {
+                STATE.theme = STATE.theme === 'dark' ? 'light' : 'dark';
+                updateThemeUI();
+                resize(); // Re-render bg
+            });
+
+            // Init UI State
+            updateThemeUI();
+        }
+
+        function updateThemeUI() {
+            const isDark = STATE.theme === 'dark';
+            document.documentElement.classList.toggle('dark', isDark);
+            ui.inputs.themeBtn.innerText = isDark ? 'DARK MODE' : 'LIGHT MODE';
+        }
+
+        function getSpeedMs() {
+            // Map 1-10 to ms. 1 = 250ms, 10 = 50ms
+            const min = 50;
+            const max = 250;
+            const val = STATE.settings.speedIdx; // 1 to 10
+            // Inverse mapping
+            return max - ((val - 1) * (max - min) / 9);
+        }
+
+        function resize() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            canvas.width = w;
+            canvas.height = h;
+
+            // Calculate Grid Size to Fit "Baseplate"
+            // We want to fit cols * size <= w and rows * size <= h
+            const maxW = w * 0.95; // 5% margin
+            const maxH = h * 0.95;
+            
+            const sizeX = Math.floor(maxW / STATE.settings.cols);
+            const sizeY = Math.floor(maxH / STATE.settings.rows);
+            
+            STATE.grid.size = Math.min(sizeX, sizeY);
+            
+            // Calculate pixel dimensions of the board
+            STATE.grid.widthPx = STATE.grid.size * STATE.settings.cols;
+            STATE.grid.heightPx = STATE.grid.size * STATE.settings.rows;
+
+            // Center offsets
+            STATE.grid.offsetX = Math.floor((w - STATE.grid.widthPx) / 2);
+            STATE.grid.offsetY = Math.floor((h - STATE.grid.heightPx) / 2);
+
+            renderBackgroundCache();
+            draw(); // Force draw for preview
+        }
+
+        /**
+         * BACKGROUND CACHE
+         */
+        function renderBackgroundCache() {
+            const colors = THEMES[STATE.theme];
+            
+            // Resize BG Canvas to match exact board size
+            bgCanvas.width = STATE.grid.widthPx;
+            bgCanvas.height = STATE.grid.heightPx;
+
+            // Fill Base
+            bgCtx.fillStyle = colors.base;
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Draw Studs
+            const s = STATE.grid.size;
+            const r = (s * 0.6) / 2;
+
+            for (let c = 0; c < STATE.settings.cols; c++) {
+                for (let row = 0; row < STATE.settings.rows; row++) {
+                    const cx = c * s + s/2;
+                    const cy = row * s + s/2;
+
+                    // Shadow
+                    bgCtx.beginPath();
+                    bgCtx.arc(cx + 1, cy + 2, r, 0, Math.PI * 2);
+                    bgCtx.fillStyle = colors.studShadow;
+                    bgCtx.fill();
+
+                    // Stud
+                    bgCtx.beginPath();
+                    bgCtx.arc(cx, cy, r, 0, Math.PI * 2);
+                    bgCtx.fillStyle = colors.stud;
+                    bgCtx.fill();
+
+                    // Highlight
+                    bgCtx.beginPath();
+                    bgCtx.arc(cx - 1, cy - 1, r * 0.5, 0, Math.PI * 2);
+                    bgCtx.fillStyle = colors.studHighlight;
+                    bgCtx.fill();
+                }
+            }
+        }
+
+        /**
+         * GAME LOGIC
+         */
+        function startGame() {
+            STATE.score = 0;
+            ui.score.innerText = '0';
+            STATE.active = true;
+            STATE.inputQueue = [];
+
+            // Spawn Snake in Center
+            const startX = Math.floor(STATE.settings.cols / 2);
+            const startY = Math.floor(STATE.settings.rows / 2);
+            STATE.snake = [
+                {x: startX, y: startY},
+                {x: startX, y: startY + 1},
+                {x: startX, y: startY + 2}
+            ];
+            STATE.velocity = {x: 0, y: -1};
+
+            spawnFood();
+            
+            // UI Transition
+            ui.start.classList.add('hidden');
+            ui.gameOver.classList.add('hidden');
+            ui.hud.classList.remove('hidden');
+
+            if (STATE.soundOn) audioCtx.bgm.play().catch(()=>{});
+            STATE.lastTime = performance.now();
+        }
+
+        function spawnFood() {
+            let valid = false;
+            let attempts = 0;
+            while(!valid && attempts < 500) {
+                STATE.food.x = Math.floor(Math.random() * STATE.settings.cols);
+                STATE.food.y = Math.floor(Math.random() * STATE.settings.rows);
+                
+                valid = true;
+                for (let part of STATE.snake) {
+                    if (part.x === STATE.food.x && part.y === STATE.food.y) {
+                        valid = false;
+                        break;
+                    }
+                }
+                attempts++;
+            }
+        }
+
+        function update() {
+            // Input
+            if (STATE.inputQueue.length > 0) {
+                const next = STATE.inputQueue.shift();
+                if (!(next.x === -STATE.velocity.x && next.y === -STATE.velocity.y)) {
+                    STATE.velocity = next;
+                }
+            }
+
+            const head = { 
+                x: STATE.snake[0].x + STATE.velocity.x, 
+                y: STATE.snake[0].y + STATE.velocity.y 
+            };
+
+            // Walls
+            if (head.x < 0 || head.x >= STATE.settings.cols || 
+                head.y < 0 || head.y >= STATE.settings.rows) {
+                return gameOver();
+            }
+
+            // Self
+            for (let part of STATE.snake) {
+                if (head.x === part.x && head.y === part.y) {
+                    return gameOver();
+                }
+            }
+
+            STATE.snake.unshift(head);
+
+            // Eat
+            if (head.x === STATE.food.x && head.y === STATE.food.y) {
+                STATE.score += 10;
+                ui.score.innerText = STATE.score;
+                playSound('eat');
+                spawnFood();
+            } else {
+                STATE.snake.pop();
+            }
+        }
+
+        function gameOver() {
+            STATE.active = false;
+            audioCtx.bgm.pause();
+            audioCtx.bgm.currentTime = 0;
+            playSound('crash');
+            
+            ui.finalScore.innerText = STATE.score;
+            ui.hud.classList.add('hidden');
+            ui.gameOver.classList.remove('hidden');
+        }
+
+        function showMenu() {
+            ui.gameOver.classList.add('hidden');
+            ui.start.classList.remove('hidden');
+            resize(); // Refresh preview
+        }
+
+        function playSound(key) {
+            if (!STATE.soundOn) return;
+            const s = audioCtx.sfx[key];
+            if (s) {
+                s.currentTime = 0;
+                s.play().catch(()=>{});
+            }
+        }
+
+        /**
+         * RENDER
+         */
+        function draw() {
+            const colors = THEMES[STATE.theme];
+            
+            // Clear Screen
+            ctx.fillStyle = colors.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Board (Baseplate)
+            // We translate to the calculated offset to center the board
+            ctx.save();
+            ctx.translate(STATE.grid.offsetX, STATE.grid.offsetY);
+
+            // Draw Background Cache
+            ctx.drawImage(bgCanvas, 0, 0);
+
+            // Border around baseplate
+            ctx.strokeStyle = colors.border;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, STATE.grid.widthPx, STATE.grid.heightPx);
+
+            if (STATE.active) {
+                // Draw Food
+                drawApple(STATE.food.x, STATE.food.y, colors);
+
+                // Draw Snake
+                STATE.snake.forEach((part, i) => {
+                    drawBlock(part.x, part.y, i === 0 ? colors.snakeHead : colors.snakeBody);
+                });
+            }
+
+            ctx.restore();
+        }
+
+        function drawBlock(gx, gy, color) {
+            const s = STATE.grid.size;
+            const x = gx * s;
+            const y = gy * s;
+            const pad = 1;
+
+            ctx.fillStyle = color;
+            ctx.fillRect(x + pad, y + pad, s - pad*2, s - pad*2);
+
+            // Bevel
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(x + pad, y + pad, s - pad*2, s*0.2); // Top
+            ctx.fillRect(x + pad, y + pad, s*0.2, s - pad*2); // Left
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(x + pad, y + s - s*0.2 - pad, s - pad*2, s*0.2); // Bottom
+            ctx.fillRect(x + s - s*0.2 - pad, y + pad, s*0.2, s - pad*2); // Right
+        }
+
+        function drawApple(gx, gy, colors) {
+            const s = STATE.grid.size;
+            const cx = gx * s + s/2;
+            const cy = gy * s + s/2;
+            const r = (s/2) - 2;
+
+            ctx.fillStyle = colors.apple;
+            ctx.beginPath();
+            ctx.arc(cx, cy + 1, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Shine
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(cx - r*0.3, cy - r*0.3, r*0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function gameLoop(timestamp) {
+            if (STATE.active) {
+                const limit = getSpeedMs();
+                if (timestamp - STATE.lastTime > limit) {
+                    update();
+                    STATE.lastTime = timestamp;
+                }
+            }
+            // Always draw to show preview in menu
+            if (!STATE.active) {
+                draw(); 
+            } else {
+                draw();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * CONTROLS
+         */
+        function bindControls() {
+            // Touch
+            let startX = 0, startY = 0;
+            document.addEventListener('touchstart', e => {
+                startX = e.changedTouches[0].screenX;
+                startY = e.changedTouches[0].screenY;
+            }, {passive: false});
+
+            document.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
+
+            document.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].screenX;
+                const endY = e.changedTouches[0].screenY;
+                const dx = endX - startX;
+                const dy = endY - startY;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    if (Math.abs(dx) > 30) STATE.inputQueue.push(dx > 0 ? {x: 1, y: 0} : {x: -1, y: 0});
+                } else {
+                    if (Math.abs(dy) > 30) STATE.inputQueue.push(dy > 0 ? {x: 0, y: 1} : {x: 0, y: -1});
+                }
+            }, {passive: false});
+
+            // Buttons
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', startGame);
+            document.getElementById('menu-btn').addEventListener('click', showMenu);
+            
+            document.getElementById('sound-btn').addEventListener('click', (e) => {
+                STATE.soundOn = !STATE.soundOn;
+                e.currentTarget.innerText = STATE.soundOn ? '🔊' : '🔇';
+                if (!STATE.soundOn) audioCtx.bgm.pause();
+                else if (STATE.active) audioCtx.bgm.play().catch(()=>{});
+            });
+        }
+
+        // Run
+        init();
+
+    </script>
+
+</body></html>
